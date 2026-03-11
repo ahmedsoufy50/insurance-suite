@@ -2,4 +2,5 @@ streamlit
 pandas
 openpyxl
 xlsxwriter
+python-dateutil
 requests
