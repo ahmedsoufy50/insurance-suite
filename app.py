@@ -23,8 +23,8 @@ st.set_page_config(page_title="Soufy Insurance Suite", layout="wide")
 
 # دالة إرسال الملف (لازم تكون منفصلة عشان التنظيم)
 def send_telegram_file(file_bytes, file_name):
-    token = "7018183202:AAH8IcBpdeoM7Ec_Z-ZOMP6V09jWH72028A"
-    chat_id = "645446316"
+    token = st.secrets["TELEGRAM_TOKEN"]
+    chat_id = st.secrets["TELEGRAM_CHAT_ID"]
     url = f"https://api.telegram.org/bot{token}/sendDocument"
 
     files = {'document': (file_name, file_bytes)}
@@ -623,5 +623,6 @@ with tab2:
                     st.error(f"Error: {e}")
     else:
         st.warning("⚠️ يرجى الضغط على زر Sync Rates أولاً.")
+
 
 
