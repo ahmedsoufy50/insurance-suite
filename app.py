@@ -355,7 +355,7 @@ with ((tab1)):
         with col4:
             price = st.number_input("Total Price", min_value=0.0, value=0.0, step=100.0 , help="أدخل سعر البلان بعدد الموظفين")
 
-        if st.button("Add to Comparison List ➕"):
+        if st.button("Add to Comparison List ↩︎ "):
             st.session_state['selected_list'].append({
                 "company": comp,
                 "plan": plan,
@@ -655,3 +655,12 @@ with tab3:
         unsafe_allow_html=True  # أو unsafe_allow_html=True حسب نسخة ستريمليت
     )
 
+st.divider()
+st.markdown(
+        """
+        <div style="text-align: left; font-size: 13px; font-style: italic;">
+            Developed with ❤️ by Ahmed Soufy | @ 2026
+        </div>
+        """,
+        unsafe_allow_html=True  # أو unsafe_allow_html=True حسب نسخة ستريمليت
+    )
