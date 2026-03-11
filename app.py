@@ -7,6 +7,13 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 from datetime import datetime
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+import requests
+from io import BytesIO
+import xlsxwriter
 
 # --- إعدادات الصفحة ---
 st.set_page_config(page_title="Soufy Insurance Suite", layout="wide")
@@ -68,7 +75,31 @@ STRUCTURE = {
     "Reimbursement Doctor Visit Coverage Up To": "تغطية زيارات الطبيب حتى",
     "Reimbursement Hospitals": "المستشفيات المعتمدة للتعويض"
 }
+# --- 1. الدوال الحسابية (لازم تكون في الأول ومكشوفة للكل) ---
 
+def calculate_insurance_age(birth_date, calculation_date=None, company_name=""):
+    if pd.isna(birth_date): return 0
+    calculation_date = pd.to_datetime(calculation_date) if calculation_date else datetime.today()
+    diff = relativedelta(calculation_date, birth_date)
+    age_years, age_months = diff.years, diff.months
+
+    if any(n in str(company_name).lower() for n in ["sarwa", "ثروه"]):
+        return age_years + 1 if age_months >= 6 else age_years
+    elif any(n in str(company_name).lower() for n in ["kaf", "كاف"]):
+        return age_years + 1 if age_months >= 9 else age_years
+    return age_years
+
+def get_price(age, price_list, selected_column_name):
+    # (نفس دالة السعر اللي كتبناها قبل كدة)
+    for _, row in price_list.iloc[1:].iterrows():
+        try:
+            raw_range = str(row['Plan Name']).replace(" ", "")
+            low, high = map(int, raw_range.split('-')) if '-' in raw_range else (int(raw_range), int(raw_range))
+            if low <= age <= high:
+                val = row[selected_column_name]
+                return float(val) if pd.notna(val) and str(val).upper() != 'NA' else 0
+        except: continue
+    return 0
 # --- دالة إنشاء ملف Excel المتقدم ---
 def generate_advanced_excel(xl, selected_plans, password="123"):
     """
@@ -232,7 +263,7 @@ def generate_advanced_excel(xl, selected_plans, password="123"):
     return output.getvalue()
 
 # --- واجهة Streamlit ---
-st.title("🛡️ Ahmed Soufy - Insurance Suite v2.0")
+st.title("🛡️ Ahmed Soufy - Insurance Suite v0.2")
 
 if 'selected_list' not in st.session_state:
     st.session_state['selected_list'] = []
@@ -319,5 +350,198 @@ with tab1:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
+QUOTATION_SHEET_URL = "https://docs.google.com/spreadsheets/d/1-PehpPy5rHuMjO5TVzFWhD8B9z5VqVCou_PMIwnKwH4/edit?pli=1&gid=1268576354#gid=1268576354"
+TEMPLATE_DOWNLOAD_URL = "https://docs.google.com/spreadsheets/d/1BBjR_p1ITjf-SNS-gHb7_-WWy22C0ASH/export?format=xlsx"
+
 with tab2:
-    st.info("🚧 Quotation System is under construction. Stay tuned!")
+    st.header("📝 Official Quotation System")
+
+    # 1. بنعرف العمودين الأول عشان نشيل الزراير فيهم
+    col_sync, col_temp = st.columns(2)
+
+    with col_sync:
+        # زرار المزامنة
+        if st.button("🔄 Sync Rates from Server", use_container_width=True):
+            with st.status("📡 Connecting...", expanded=True) as status:
+                xl_rates = load_data(QUOTATION_SHEET_URL)
+                if xl_rates:
+                    st.session_state['xl_rates_data'] = xl_rates
+                    status.update(label="✅ Quotation Rates Updated!", state="complete", expanded=False)
+                else:
+                    status.update(label="❌ Failed to load Quotation Rates", state="error")
+
+    with col_temp:
+        # زرار تحميل التمبلت - ده هيفضل ظاهر دايماً للمستخدم عشان ينزله في أي وقت
+        st.link_button("📥 Download Employees Template", TEMPLATE_DOWNLOAD_URL, use_container_width=True, type="primary")
+
+    # 2. واجهة التسعير (بتظهر بس لما يكون فيه بيانات)
+    if 'xl_rates_data' in st.session_state:
+        xl_rates = st.session_state['xl_rates_data']
+        st.markdown("---")
+
+        # الترتيب اللي طلبته: الحسابات على الشمال والشركة والملف على اليمين
+        col_left, col_right = st.columns(2)
+        with col_left:
+            life_input = st.number_input("Life Value (L.E)", min_value=0.0, value=0.0, key="life_q")
+            tax_input = st.number_input("Fees & Expenses %", min_value=0.0, value=0.0, step=0.1, key="tax_q") / 100
+
+        with col_right:
+            company = st.selectbox("Select Insurer", xl_rates.sheet_names, key="comp_q")
+            employees_file = st.file_uploader("Upload Employees File (Excel)", type=['xlsx'], key="file_q")
+
+        # 3. معالجة البيانات وإنشاء الملف
+        if employees_file:
+            if st.button("🚀 Generate Official Quotation", use_container_width=True):
+                try:
+                    with st.spinner("Processing official quotation and formatting Excel..."):
+                        # --- منطق الحسابات ---
+                        df_people = pd.read_excel(employees_file)
+                        price_list = pd.read_excel(xl_rates, sheet_name=company)
+                        price_list.columns = [str(c).strip() for c in price_list.columns]
+
+                        plan_codes_row = price_list.iloc[0]
+                        available_cols = [c for c in price_list.columns if c != 'Plan Name' and 'Unnamed' not in str(c)]
+                        code_to_plan_map = {str(plan_codes_row[c]).split('.')[0]: c for c in available_cols}
+
+                        results = []
+                        plan_counts = {}  # 1. تعريف القاموس هنا (كان ناقص)
+
+                        for _, person in df_people.iterrows():
+                            dob = pd.to_datetime(person['BirthDate'], dayfirst=True, errors='coerce')
+                            emp_plan_code = str(person['Plan Code']).split('.')[0].strip()
+
+                            error_found = False
+                            if emp_plan_code in code_to_plan_map:
+                                p_name = code_to_plan_map[emp_plan_code]
+                                age = calculate_insurance_age(dob, company_name=company)
+                                medical_p = get_price(age, price_list, p_name)
+
+                                # 2. إضافة العدد للقاموس (عشان الملخص يشتغل)
+                                plan_counts[p_name] = plan_counts.get(p_name, 0) + 1
+                            else:
+                                p_name, medical_p, age = "Not Found", 0, 0
+                                error_found = True
+
+                            # منطق كاف (Relation P/D)
+                            life_used = life_input
+                            current_tax_rate = tax_input
+                            if company in ["كاف", "Kaf"]:
+                                rel = str(person.get('Releation', '')).strip().upper()
+                                if rel == 'D':
+                                    life_used = 0
+                                    current_tax_rate = max(tax_input - 0.0104, 0)
+
+                            pre_fees = medical_p + life_used
+                            fees_v = pre_fees * current_tax_rate
+
+                            results.append({
+                                'Name': person['Name'], 'Age': age, 'Plan Name': p_name,
+                                'Plan Code': emp_plan_code, 'Medical Premium': medical_p,
+                                'Life Insurance': life_used, 'Subtotal': pre_fees,
+                                'Issuance Fees & Expenses': fees_v, 'Grand Total': pre_fees + fees_v,
+                                'Is_Error': error_found
+                            })
+
+                        # --- إنشاء ملف الـ Excel (XlsxWriter) ---
+                        output = BytesIO()
+                        # تم تصحيح السطر ده ليكون مباشر ونظيف
+                        writer = pd.ExcelWriter(output, engine='xlsxwriter')
+                        df_out = pd.DataFrame(results)
+
+                        # كتابة البيانات الأساسية (بدون عمود الـ Is_Error)
+                        df_out.drop(columns=['Is_Error']).to_excel(writer, index=False, sheet_name='Quotation',
+                                                                   startrow=5)
+
+                        workbook = writer.book
+                        worksheet = writer.sheets['Quotation']
+
+                        # --- 1. تعريف التنسيقات (Formats) ---
+                        header_fmt = workbook.add_format({
+                            'bold': True, 'font_size': 16, 'font_color': '#FFFFFF',
+                            'bg_color': '#203764', 'align': 'center', 'valign': 'vcenter', 'border': 1
+                        })
+                        warning_fmt = workbook.add_format({
+                            'bold': True, 'font_size': 12, 'font_color': '#FF0000',
+                            'align': 'center', 'valign': 'vcenter'
+                        })
+                        # التنسيق الرقمي العادي (اللي كان بيعمل Error)
+                        num_fmt = workbook.add_format({
+                            'align': 'center', 'valign': 'vcenter', 'border': 1, 'num_format': '#,##0.00'
+                        })
+                        # تنسيق الخطأ للخلايا اللي فيها بيانات ناقصة
+                        error_fmt = workbook.add_format({
+                            'bg_color': '#FFC7CE', 'border': 1, 'align': 'center', 'num_format': '#,##0.00'
+                        })
+                        # تنسيق الإجمالي (الأصفر)
+                        total_fmt = workbook.add_format({
+                            'bold': True, 'bg_color': '#FFFF00', 'border': 1, 'align': 'center',
+                            'num_format': '#,##0.00'
+                        })
+
+                        # --- 2. إضافة "الختم" و "التحذير" والحماية ---
+                        worksheet.merge_range('A1:I2', 'Ahmed Soufy - Corporate Medical Account Manager ©', header_fmt)
+                        worksheet.merge_range('A3:I4', 'أسعار تجريبية عرضة للزيادة أو النقصان طبقاً لشروط شركة التأمين',
+                                              warning_fmt)
+                        worksheet.protect('123')  # حماية الشيت بكلمة سر
+
+                        # --- 3. تنسيق الأعمدة ---
+                        worksheet.set_column('A:A', 30)  # عمود الاسم
+                        worksheet.set_column('B:I', 18)  # بقية الأعمدة
+
+                        # --- 4. كتابة البيانات باستخدام التنسيقات المحددة ---
+                        for r_idx, data in enumerate(results):
+                            fmt = error_fmt if data['Is_Error'] else num_fmt
+                            row_vals = [
+                                data['Name'], data['Age'], data['Plan Name'], data['Plan Code'],
+                                data['Medical Premium'], data['Life Insurance'], data['Subtotal'],
+                                data['Issuance Fees & Expenses'], data['Grand Total']
+                            ]
+                            for c_idx, val in enumerate(row_vals):
+                                worksheet.write(r_idx + 6, c_idx, val, fmt)
+
+                        # --- 5. إضافة الإجماليات في آخر صف ---
+                        last_row_data = len(results) + 6
+                        for c_idx in [4, 5, 6, 7, 8]:
+                            col_letter = chr(65 + c_idx)
+                            worksheet.write_formula(last_row_data, c_idx,
+                                                    f"=SUM({col_letter}7:{col_letter}{last_row_data})", total_fmt)
+
+                        # --- 6. تعريف تنسيقات الملخص والفوتر (اللي كانت ناقصة) ---
+                        stats_fmt = workbook.add_format(
+                            {'bold': True, 'italic': True, 'font_size': 10, 'align': 'left'})
+                        footer_copy_fmt = workbook.add_format(
+                            {'italic': True, 'font_size': 9, 'align': 'right', 'font_color': '#595959'})
+
+                        # صف ملخص الخطط (بيسيب سطرين بعد الجدول)
+                        stats_row_idx = last_row_data + 2
+
+                        if 0 < len(plan_counts) <= 5:  # زودتها لـ 5 عشان لو عندك بلانات أكتر
+                            stats_text = "Plans Summary: " + " | ".join([f"{k} - {v}" for k, v in plan_counts.items()])
+                            worksheet.merge_range(f'A{stats_row_idx + 1}:E{stats_row_idx + 1}', stats_text, stats_fmt)
+
+                        # الفوتر النهائي
+                        footer_text = "Made by: Ahmed Soufy - Corporate Medical Account Manager ©"
+                        worksheet.merge_range(f'F{stats_row_idx + 1}:I{stats_row_idx + 1}', footer_text,
+                                              footer_copy_fmt)
+
+                        # ضبط عرض الأعمدة النهائي (عشان ميبقاش فيه حاجة مقصوصة)
+                        for i in range(9):
+                            worksheet.set_column(i, i, 20)
+
+                        # إغلاق الملف مرة واحدة فقط في النهاية
+                        writer.close()
+
+                        # --- زرار الداونلود تحت زرار الـ Generate ---
+                        st.success(f"✅ تم تجهيز كوتيشن {company} بنجاح!")
+                        st.download_button(
+                            label="📥 Download Official Excel Quotation",
+                            data=output.getvalue(),
+                            file_name=f"Quotation_{company}_Official.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True
+                        )
+
+                except Exception as e:
+                    st.error(f"Error: {e}")
+    else:
+        st.warning("⚠️ يرجى الضغط على زر Sync Rates أولاً.")
