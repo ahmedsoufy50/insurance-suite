@@ -1,6 +1,7 @@
 streamlit
 pandas
 openpyxl
+requests
+python-dotenv
 xlsxwriter
 python-dateutil
-requests
