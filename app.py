@@ -305,7 +305,7 @@ if 'selected_list' not in st.session_state:
 if 'xl_data' not in st.session_state:
     st.session_state['xl_data'] = None
 
-tab1, tab2 = st.tabs(["📊 Comparison Tool", "📝 Quotation System"])
+tab1, tab2, tab3 = st.tabs(["📊 Comparison Tool", "📝 Quotation System", "💡 New Ideas"])
 
 with ((tab1)):
     st.markdown("### Market Comparison")
@@ -625,4 +625,32 @@ with tab2:
         st.warning("⚠️ يرجى الضغط على زر Sync Rates أولاً.")
 
 
+with tab3:
+    st.header("💡 New Ideas & Future Updates")
+    st.info(
+        "This section is currently **Under Development**. We are working on bringing more automation to your insurance workflow!")
 
+    col_idea1, col_idea2 = st.columns(2)
+
+    with col_idea1:
+        st.subheader("🚀 Coming Soon")
+        st.write("""
+        - Automated policy comparison.
+        - Smart recommendations based on client history.
+        """)
+    with col_idea2:  # ممكن تستخدم col_idea2 لو حابب
+        st.subheader("📊 Advanced Analytics")
+        st.write("""
+        - Interactive dashboards for your sales performance.
+        - Real-time market share tracking.
+        - Client retention alerts.
+        """)
+    st.divider()
+    st.markdown(
+        """
+        <div style="text-align: left; font-size: 13px; font-style: italic;">
+            Developed with ❤️ by Ahmed Soufy | © 2026
+        </div>
+        """,
+        unsafe_allow_html=True  # أو unsafe_allow_html=True حسب نسخة ستريمليت
+    )
