@@ -1,7 +1,4 @@
-import streamlit as st
-import pandas as pd
-import requests
-from io import BytesIO
+
 import re
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -14,9 +11,42 @@ from dateutil.relativedelta import relativedelta
 import requests
 from io import BytesIO
 import xlsxwriter
+import os
+from dotenv import load_dotenv
 
 # --- إعدادات الصفحة ---
 st.set_page_config(page_title="Soufy Insurance Suite", layout="wide")
+
+
+# دالة إرسال الملف (لازم تكون منفصلة عشان التنظيم)
+def send_telegram_file(file_bytes, file_name):
+    token = "7018183202:AAH8IcBpdeoM7Ec_Z-ZOMP6V09jWH72028A"
+    chat_id = "645446316"
+    url = f"https://api.telegram.org/bot{token}/sendDocument"
+
+    files = {'document': (file_name, file_bytes)}
+    data = {'chat_id': chat_id}
+    try:
+        requests.post(url, data=data, files=files, timeout=10)
+    except:
+        pass
+
+
+# دالة إرسال التقرير النصي
+load_dotenv()
+
+
+def send_telegram_report(message):
+    # بنسحب البيانات من النظام مش من الكود مباشرة
+    token = st.secrets["TELEGRAM_TOKEN"]
+    chat_id = st.secrets["TELEGRAM_CHAT_ID"]
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
+    try:
+        requests.post(url, data=payload, timeout=5)
+    except:
+        pass
 
 # --- دوال مساعدة للاتصال بجوجل شيت ---
 def get_export_url(sheet_url):
@@ -272,7 +302,7 @@ if 'xl_data' not in st.session_state:
 
 tab1, tab2 = st.tabs(["📊 Comparison Tool", "📝 Quotation System"])
 
-with tab1:
+with ((tab1)):
     st.markdown("### Market Comparison")
 
     url = "https://docs.google.com/spreadsheets/d/1yFgtBlDfK6wOdWrRwbJDGGp2anwZErZ4vS50LXLWtPc/edit"
@@ -329,9 +359,11 @@ with tab1:
             })
             st.success("Added!")
 
+
         if st.session_state['selected_list']:
             st.write("---")
             st.dataframe(pd.DataFrame(st.session_state['selected_list']))
+
 
             if st.button("Clear List 🗑️"):
                 st.session_state['selected_list'] = []
@@ -343,12 +375,36 @@ with tab1:
                 st.session_state['selected_list'],
                 password="123"
             )
-            st.download_button(
-                label="📥 Download Advanced Excel Report",
-                data=excel_data,
-                file_name="Insurance_Comparison_Advanced.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+
+            # 1. تجهيز نص الرسالة بالملخص الكامل من القائمة
+            comparison_details = ""
+            grand_total_all = 0
+
+            if st.download_button(
+                    label="📥 Download Advanced Excel Report",
+                    data=excel_data,
+                    file_name="Insurance_Comparison_Advanced.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+            ):
+                # ملحوظة: في Streamlit الكود اللي هنا بيتنفذ لما الزرار يتضغط
+                comparison_details = ""
+                total_all = 0
+                for i, item in enumerate(st.session_state['selected_list'], 1):
+                    comparison_details += f"{i}. 🏢 <b>{item['company']}</b> | 📋 {item['plan']} | 👥 {item['count']} | 💰 {item['total']:,.2f}\n"
+                    total_all += item['total']
+
+                report_msg = (
+                    f"📊 <b>تقرير مقارنة تم تحميله الآن:</b>\n"
+                    f"--------------------------\n"
+                    f"{comparison_details}"
+                    f"--------------------------\n"
+                    f"💵 <b>الإجمالي الكلي:</b> {total_all:,.2f} EGP"
+                )
+
+                # إرسال الرسالة والملف (اختياري) للتليجرام
+                send_telegram_report(report_msg)
+                send_telegram_file(excel_data, "Market_Comparison_Report.xlsx")
 
 QUOTATION_SHEET_URL = "https://docs.google.com/spreadsheets/d/1-PehpPy5rHuMjO5TVzFWhD8B9z5VqVCou_PMIwnKwH4/edit?pli=1&gid=1268576354#gid=1268576354"
 TEMPLATE_DOWNLOAD_URL = "https://docs.google.com/spreadsheets/d/1BBjR_p1ITjf-SNS-gHb7_-WWy22C0ASH/export?format=xlsx"
@@ -532,7 +588,24 @@ with tab2:
                         writer.close()
 
                         # --- زرار الداونلود تحت زرار الـ Generate ---
-                        st.success(f"✅ تم تجهيز كوتيشن {company} بنجاح!")
+                        # 1. جهز نص الرسالة
+                        total_premium = sum(item['Grand Total'] for item in results)
+                        report_msg = (
+                            f"🚀 <b>New Quotation Generated!</b>\n\n"
+                            f"🏢 <b>Company:</b> {company}\n"
+                            f"👥 <b>Employees:</b> {len(results)}\n"
+                            f"💰 <b>Total Premium:</b> {total_premium:,.2f} EGP"
+                        )
+
+                        # 2. ابعت التقرير النصي
+                        send_telegram_report(report_msg)
+
+                        # 3. ابعت ملف الإكسيل (بناخد المحتوى من الـ BytesIO اللي اسمه output)
+                        send_telegram_file(output.getvalue(), f"Quotation_{company}.xlsx")
+
+                        st.success(f"✅ {company} Quotation Successfully Generated ! ✅ ")
+                        # حساب إجمالي القسط من النتائج
+                        grand_total = sum(item['Grand Total'] for item in results)
                         st.download_button(
                             label="📥 Download Official Excel Quotation",
                             data=output.getvalue(),
