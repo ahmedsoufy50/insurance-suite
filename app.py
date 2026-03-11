@@ -622,7 +622,7 @@ with tab2:
                 except Exception as e:
                     st.error(f"Error: {e}")
     else:
-        st.warning("⚠️ يرجى الضغط على زر Sync Rates أولاً.")
+        st.warning("Please press the 'Sync Rates' button first .. ⚠️ ")
 
 
 with tab3:
@@ -654,3 +654,4 @@ with tab3:
         """,
         unsafe_allow_html=True  # أو unsafe_allow_html=True حسب نسخة ستريمليت
     )
+
