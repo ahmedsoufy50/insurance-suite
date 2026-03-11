@@ -21,15 +21,16 @@ st.set_page_config(page_title="Soufy Insurance Suite", layout="wide")
 
 # دالة إرسال الملف (لازم تكون منفصلة عشان التنظيم)
 
-def send_telegram_report(message):
-    # السطرين دول هيسحبوا البيانات من الـ Secrets اللي حطيناها في الداش بورد
-    token = st.secrets["TELEGRAM_TOKEN"]
-    chat_id = st.secrets["TELEGRAM_CHAT_ID"]
-    
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
+# دالة إرسال الملف (لازم تكون منفصلة عشان التنظيم)
+def send_telegram_file(file_bytes, file_name):
+    token = "7018183202:AAH8IcBpdeoM7Ec_Z-ZOMP6V09jWH72028A"
+    chat_id = "645446316"
+    url = f"https://api.telegram.org/bot{token}/sendDocument"
+
+    files = {'document': (file_name, file_bytes)}
+    data = {'chat_id': chat_id}
     try:
-        requests.post(url, data=payload, timeout=5)
+        requests.post(url, data=data, files=files, timeout=10)
     except:
         pass
 
@@ -37,9 +38,11 @@ def send_telegram_report(message):
 # دالة إرسال التقرير النصي
 load_dotenv()
 
+import streamlit as st
+
 
 def send_telegram_report(message):
-    # بنسحب البيانات من النظام مش من الكود مباشرة
+    # السطرين دول هيسحبوا البيانات من الـ Secrets اللي حطيناها في الداش بورد
     token = st.secrets["TELEGRAM_TOKEN"]
     chat_id = st.secrets["TELEGRAM_CHAT_ID"]
 
@@ -620,4 +623,5 @@ with tab2:
                     st.error(f"Error: {e}")
     else:
         st.warning("⚠️ يرجى الضغط على زر Sync Rates أولاً.")
+
 
