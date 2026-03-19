@@ -112,17 +112,32 @@ STRUCTURE = {
 }
 # --- 1. الدوال الحسابية (لازم تكون في الأول ومكشوفة للكل) ---
 
+#def calculate_insurance_age(birth_date, calculation_date=None, company_name=""):
+#    if pd.isna(birth_date): return 0
+#    calculation_date = pd.to_datetime(calculation_date) if calculation_date else datetime.today()
+#    diff = relativedelta(calculation_date, birth_date)
+#    age_years, age_months = diff.years, diff.months
+
+#    if any(n in str(company_name).lower() for n in ["sarwa", "ثروه"]):
+#        return age_years + 1 if age_months >= 6 else age_years
+#    elif any(n in str(company_name).lower() for n in ["kaf", "كاف"]):
+#        return age_years + 1 if age_months >= 9 else age_years
+#    return age_years
+
+# --- 1. الدوال الحسابية (لازم تكون في الأول ومكشوفة للكل) ---
 def calculate_insurance_age(birth_date, calculation_date=None, company_name=""):
     if pd.isna(birth_date): return 0
-    calculation_date = pd.to_datetime(calculation_date) if calculation_date else datetime.today()
-    diff = relativedelta(calculation_date, birth_date)
+    calc = pd.to_datetime(calculation_date) if calculation_date else datetime.today()
+    diff = relativedelta(calc, birth_date)
     age_years, age_months = diff.years, diff.months
-
     if any(n in str(company_name).lower() for n in ["sarwa", "ثروه"]):
         return age_years + 1 if age_months >= 6 else age_years
     elif any(n in str(company_name).lower() for n in ["kaf", "كاف"]):
         return age_years + 1 if age_months >= 9 else age_years
+    elif any(n in str(company_name).lower() for n in ["Libanosuisse", "ليبانو"]):
+        return age_years + 1 if age_months >= 5.5 else age_years
     return age_years
+
 
 def get_price(age, price_list, selected_column_name):
     # (نفس دالة السعر اللي كتبناها قبل كدة)
@@ -645,15 +660,7 @@ with tab3:
         - Real-time market share tracking.
         - Client retention alerts.
         """)
-    st.divider()
-    st.markdown(
-        """
-        <div style="text-align: left; font-size: 13px; font-style: italic;">
-            Developed with ❤️ by Ahmed Soufy | © 2026
-        </div>
-        """,
-        unsafe_allow_html=True  # أو unsafe_allow_html=True حسب نسخة ستريمليت
-    )
+ 
 
 st.divider()
 st.markdown(
