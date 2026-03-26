@@ -57,16 +57,56 @@ def get_export_url(sheet_url):
     return f"https://docs.google.com/spreadsheets/d/{match.group(1)}/export?format=xlsx"
 
 
+def _google_sheet_id(sheet_url):
+    match = re.search(r"/d/([a-zA-Z0-9_-]+)", sheet_url)
+    return match.group(1) if match else None
+
+
+def _google_export_candidates(sheet_url):
+    sheet_id = _google_sheet_id(sheet_url)
+    if not sheet_id:
+        return []
+
+    return [
+        f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=xlsx",
+        f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?exportFormat=xlsx&format=xlsx",
+        f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=ods",
+    ]
+
+
+def _download_google_workbook(sheet_url):
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "*/*",
+        "Cache-Control": "no-cache",
+    }
+
+    last_error = None
+    for export_url in _google_export_candidates(sheet_url):
+        try:
+            response = requests.get(export_url, timeout=20, headers=headers)
+            response.raise_for_status()
+
+            content_type = response.headers.get("Content-Type", "").lower()
+            if "text/html" in content_type:
+                raise ValueError("Google returned an HTML page instead of a spreadsheet file.")
+
+            if export_url.endswith("format=ods"):
+                return pd.ExcelFile(BytesIO(response.content), engine="odf")
+            return pd.ExcelFile(BytesIO(response.content), engine="openpyxl")
+        except Exception as exc:
+            last_error = exc
+
+    raise last_error if last_error else RuntimeError("Could not download the Google Sheet.")
+
+
 @st.cache_resource(ttl=300)
 def load_data(url):
     try:
-        export_url = get_export_url(url)
-        if not export_url:
+        if not _google_sheet_id(url):
             st.error("Invalid Google Sheets URL.")
             return None
-        response = requests.get(export_url, timeout=15)
-        response.raise_for_status()
-        return pd.ExcelFile(BytesIO(response.content), engine="openpyxl")
+        return _download_google_workbook(url)
     except Exception as exc:
         st.error(f"Connection failed: {exc}")
         return None
