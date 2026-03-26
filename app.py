@@ -25,35 +25,41 @@ def _get_secret(key, default=None):
         return default
 
 
-def send_telegram_file(file_bytes, file_name):
+def _telegram_request(method, endpoint, **kwargs):
+    token = _get_secret("TELEGRAM_TOKEN")
+    chat_id = _get_secret("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        return False, "Telegram secrets are missing."
+
+    url = f"https://api.telegram.org/bot{token}/{endpoint}"
     try:
-        token = _get_secret("TELEGRAM_TOKEN")
-        chat_id = _get_secret("TELEGRAM_CHAT_ID")
-        if not token or not chat_id:
-            return
-        requests.post(
-            f"https://api.telegram.org/bot{token}/sendDocument",
-            data={"chat_id": chat_id},
-            files={"document": (file_name, file_bytes)},
-            timeout=10,
-        )
-    except Exception:
-        pass
+        response = requests.request(method, url, timeout=10, **kwargs)
+        response.raise_for_status()
+        payload = response.json()
+        if not payload.get("ok"):
+            return False, payload.get("description", "Telegram API rejected the request.")
+        return True, ""
+    except Exception as exc:
+        return False, str(exc)
+
+
+def send_telegram_file(file_bytes, file_name):
+    chat_id = _get_secret("TELEGRAM_CHAT_ID")
+    return _telegram_request(
+        "POST",
+        "sendDocument",
+        data={"chat_id": chat_id},
+        files={"document": (file_name, file_bytes)},
+    )
 
 
 def send_telegram_report(message):
-    try:
-        token = _get_secret("TELEGRAM_TOKEN")
-        chat_id = _get_secret("TELEGRAM_CHAT_ID")
-        if not token or not chat_id:
-            return
-        requests.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            data={"chat_id": chat_id, "text": message, "parse_mode": "HTML"},
-            timeout=5,
-        )
-    except Exception:
-        pass
+    chat_id = _get_secret("TELEGRAM_CHAT_ID")
+    return _telegram_request(
+        "POST",
+        "sendMessage",
+        data={"chat_id": chat_id, "text": message, "parse_mode": "HTML"},
+    )
 
 
 def get_export_url(sheet_url):
@@ -435,11 +441,15 @@ with tab1:
                         f"{item['count']} members | {item['total']:,.2f} EGP\n"
                     )
                     total_all += item["total"]
-                send_telegram_report(
+                telegram_ok, telegram_error = send_telegram_report(
                     f"<b>Comparison Report</b>\n-----------\n{details}-----------\n"
                     f"<b>Total:</b> {total_all:,.2f} EGP"
                 )
-                send_telegram_file(excel_data, "Market_Comparison_Report.xlsx")
+                file_ok, file_error = send_telegram_file(excel_data, "Market_Comparison_Report.xlsx")
+                if not telegram_ok:
+                    st.warning(f"Telegram message was not sent: {telegram_error}")
+                elif not file_ok:
+                    st.warning(f"Telegram file was not sent: {file_error}")
 
 
 with tab2:
@@ -608,10 +618,14 @@ with tab2:
                     writer.close()
 
                     grand_total = sum(item["Grand Total"] for item in results)
-                    send_telegram_report(
+                    telegram_ok, telegram_error = send_telegram_report(
                         f"<b>New Quotation</b>\n{insurer_name}\n{len(results)} employees\n{grand_total:,.2f} EGP"
                     )
-                    send_telegram_file(output.getvalue(), f"Quotation_{insurer_name}.xlsx")
+                    file_ok, file_error = send_telegram_file(output.getvalue(), f"Quotation_{insurer_name}.xlsx")
+                    if not telegram_ok:
+                        st.warning(f"Telegram message was not sent: {telegram_error}")
+                    elif not file_ok:
+                        st.warning(f"Telegram file was not sent: {file_error}")
 
                     st.success(f"{insurer_name} quotation generated successfully.")
                     st.download_button(
