@@ -218,53 +218,41 @@ def generate_advanced_excel(xl, selected_plans, password="123"):
         selected_data.append(col_values)
 
     wb = Workbook()
-ws = wb.active
-ws.title = "Insurance Comparison"
+    ws = wb.active
+    ws.title = "Insurance Comparison"
 
-ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_cols)
-prepared = ws.cell(1, 1, "Prepared by: Ahmed Soufy - Corporate Medical Account Manager")
-prepared.font = Font(size=14, bold=True, color="1E3A5F")
-prepared.alignment = Alignment(horizontal="center", vertical="center")
-prepared.fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_cols)
+    prepared = ws.cell(1, 1, "Prepared by: Ahmed Soufy - Corporate Medical Account Manager")
+    prepared.font = Font(size=14, bold=True, color="1E3A5F")
+    prepared.alignment = Alignment(horizontal="center", vertical="center")
+    prepared.fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
 
-blue_border = Border(
-    top=Side(style="medium", color="1E3A5F"),
-    bottom=Side(style="medium", color="1E3A5F"),
-    left=Side(style="medium", color="1E3A5F"),
-    right=Side(style="medium", color="1E3A5F"),
-)
+    for col in range(1, total_cols + 1):
+        ws.cell(1, col).fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
 
-for col in range(1, total_cols + 1):
-    cell = ws.cell(1, col)
-    cell.fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
-    if col == 1:
-        cell.border = Border(
-            top=Side(style="medium", color="1E3A5F"),
-            bottom=Side(style="medium", color="1E3A5F"),
-            left=Side(style="medium", color="1E3A5F"),
-        )
-    elif col == total_cols:
-        cell.border = Border(
-            top=Side(style="medium", color="1E3A5F"),
-            bottom=Side(style="medium", color="1E3A5F"),
-            right=Side(style="medium", color="1E3A5F"),
-        )
-    else:
-        cell.border = Border(
+    ws.cell(1, 1).border = Border(
+        top=Side(style="medium", color="1E3A5F"),
+        bottom=Side(style="medium", color="1E3A5F"),
+        left=Side(style="medium", color="1E3A5F"),
+    )
+    ws.cell(1, total_cols).border = Border(
+        top=Side(style="medium", color="1E3A5F"),
+        bottom=Side(style="medium", color="1E3A5F"),
+        right=Side(style="medium", color="1E3A5F"),
+    )
+    for col in range(2, total_cols):
+        ws.cell(1, col).border = Border(
             top=Side(style="medium", color="1E3A5F"),
             bottom=Side(style="medium", color="1E3A5F"),
         )
 
-ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=total_cols)
-issued = ws.cell(2, 1, f"Issued Date: {datetime.now().strftime('%Y-%m-%d')}")
-issued.font = Font(size=10, italic=True)
-issued.alignment = Alignment(horizontal="center", vertical="center")
-issued.fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=total_cols)
+    issued = ws.cell(2, 1, f"Issued Date: {datetime.now().strftime('%Y-%m-%d')}")
+    issued.font = Font(size=10, italic=True)
+    issued.alignment = Alignment(horizontal="center", vertical="center")
+    issued.fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+    ws.row_dimensions[3].height = 5
 
-for col in range(1, total_cols + 1):
-    ws.cell(2, col).fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
-
-ws.row_dimensions[3].height = 5
 
 
 
