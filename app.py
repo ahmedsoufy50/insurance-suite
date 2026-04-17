@@ -547,21 +547,20 @@ with tab1:
     url = "https://docs.google.com/spreadsheets/d/1yFgtBlDfK6wOdWrRwbJDGGp2anwZErZ4vS50LXLWtPc/edit"
 
     if 'xl_data' not in st.session_state or st.session_state['xl_data'] is None:
-        with st.status("📡 Connecting to Insurance Server...", expanded=True) as status:
-            st.write("Fetching latest rates...")
+        with st.spinner("Connecting to Insurance Server..."):
             xl = load_data(url)
             if xl:
                 st.session_state['xl_data'] = xl
-                status.update(label="✅ Data Synced from Server!", state="complete", expanded=False)
+                st.toast("✅ Data Synced from Server!")
             else:
-                status.update(label="❌ Connection Failed", state="error")
+                st.error("Connection Failed")
 
     if st.button("Sync Data 🔄"):
         with st.spinner('Loading...'):
             xl = load_data(url)
             if xl:
                 st.session_state['xl_data'] = xl
-                st.success("Connected to Server")
+                st.toast("✅ Connected to Server")
 
     if st.session_state['xl_data']:
         xl = st.session_state['xl_data']
