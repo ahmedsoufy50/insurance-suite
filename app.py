@@ -79,18 +79,18 @@ STRUCTURE = {
     "Total Permanent Disability": "عجز كلي دائم",
     "Partial Permanent Disability": "عجز جزئي دائم",
     "Annual Ceiling Per Person": "الحد السنوي للفرد",
-    "Accommodation": "الإقامة",
+    "Accommodation": "نوع غرفه الاقامه",
     "Medical TPA": "إدارة المطالبات الطبية (TPA)",
     "Network": "الشبكة الطبية",
-    "Catigorization Availability": "توفر التصنيف",
+    "Catigorization Availability": "امكانيه تقسيم الموظفين",
     "Inpatient": "الإقامة الداخلية (العمليات)",
-    "Outpatient": "العيادات الخارجية",  # فاصل
-    "Outpatient Consultations": "استشارات العيادات الخارجية",
-    "Labs Scans": "تحاليل وأشعة",
+    "Outpatient": "العيادات الخارجية",
+    "Outpatient Consultations": "تغطيه الكشف",
+    "Labs Scans": "تغطيه التحاليل والأشعة",
     "Labs Scans Inside Hospital": "تحاليل وأشعة داخل المستشفى",
     "Physiotherapy": "العلاج الطبيعي",
     "Medication": "الأدوية",
-    "Extra Benefits": "مزايا إضافية",  # فاصل
+    "Extra Benefits": "مزايا إضافية",
     "Dental Coverage": "تغطية الأسنان",
     "Dental Population": "عدد المستفيدين من تغطية الأسنان",
     "Dental Limit": "حد تغطية الأسنان",
@@ -99,13 +99,13 @@ STRUCTURE = {
     "Optical Limit": "حد تغطية النظارات",
     "Maternity Limit": "حد تغطية الولادة",
     "Maternity Population": "عدد المستفيدين من تغطية الولادة",
-    "Waiting Period": "فترة الانتظار",
+    "Waiting Period": "فترة الانتظار للحمل و الولاده",
     "New Born Ceiling": "حد تغطية المولود الجديد",
-    "Chronic And Pre-existing": "الأمراض المزمنة والحالات السابقة",
+    "Chronic And Pre-existing": "الأمراض المزمنة والسابقة عن التعاقد",
     "New Chronic": "الأمراض المزمنة الجديدة",
-    "Reimbursement Coverage": "تغطية التعويض النقدي",
-    "Reimbursement Doctor Visit Coverage Up To": "تغطية زيارات الطبيب حتى",
-    "Reimbursement Hospitals": "المستشفيات المعتمدة للتعويض"
+    "Reimbursement Coverage": "قيمه الاسترداد النقدي",
+    "Reimbursement Doctor Visit Coverage Up To": "قيمه استرداد الكشف كحد اقصي",
+    "Reimbursement Hospitals": "الاسعار المعتمدة للاسترداد",
 }
 
 
